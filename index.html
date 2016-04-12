@@ -1,0 +1,55 @@
+<html>
+<head>
+	<title>
+		Indian Language Full Parser : LTRC, IIIT-H
+	</title>
+</head>
+<body>
+<textarea id="sentences">
+</textarea><button onclick="parse()">Parse</button>
+<div id="results">
+
+</div>
+</body>
+<script src="./js/jquery.js"></script>
+<script> 
+
+function parse() {
+	var sentences = $('#sentences').val();
+	console.log(sentences);
+	ajaxCall("http://ltrc.iiit.ac.in:5005/parse", {data: sentences, lang: "hin"}, "GET", getResults);
+}
+
+function getResults(data) {
+	console.log(data);
+}
+
+function ajaxCall(endpoint, objToSend, ajaxmethod, callback) {
+    var res;
+$.ajax({
+  url: endpoint,
+  data: objToSend,
+  dataType: "json",
+  async: true,  
+type: ajaxmethod,
+  success: function(data) {
+    callback(data);
+  }
+});
+return res;
+}
+
+function convUnicode(text) {
+  return decodeURIComponent(escape(text));
+}
+function getUrlVars() {
+var vars = {};
+var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+vars[key] = value;
+});
+return vars;
+}
+
+
+</script>
+</html>
