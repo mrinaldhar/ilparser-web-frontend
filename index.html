@@ -3,25 +3,198 @@
 	<title>
 		Indian Language Full Parser : LTRC, IIIT-H
 	</title>
+	<style>
+	@font-face {
+		src: url('./fonts/myriadl.otf');
+		font-family: myriadl;
+	}
+	body {
+		font-family: myriadl;
+		text-align: center;
+		padding-top: 80px;
+		background-color: rgba(0,0,0,0.1);
+	}
+	#sentences {
+		left: 0;
+		right: 0;
+		margin: 0 auto;
+		width: 60%;
+		display: block;
+		outline-width: 0px;
+		font-family: consolas, monospace;
+		font-size: 1em;
+		border: 1px solid rgba(0,0,0,0.5);
+		border-radius: 5px;
+		padding: 10px;
+		height: 150px;
+		resize: none;
+	}
+	#results {
+		width: 80%;
+		text-align: left;
+		margin-top: 20px;
+		left: 0;
+		right: 0;
+		margin: 0 auto;
+		display: block;
+	}
+	.btn {
+		padding-left: 10px;
+		padding-right: 10px;
+		padding-top: 5px;
+		padding-bottom: 5px;
+		margin-top: 20px;
+		background-color: white;
+		width: 25%;
+		cursor: pointer;
+		outline-color: 0px;
+		border: 1px solid rgba(0,0,0,0.5);
+		border-radius: 5px;
+	}
+	.btn:hover {
+		background-color: rgba(0,0,0,0.8);
+		color: white;
+	}
+	#header {
+		position: fixed;
+		top: 0px;
+		left: 0px;
+		color: white;
+		font-size: 1.5em;
+		width: 100%;
+		background: #003156;
+		padding: 20px;
+		border-bottom: 3px solid black;
+	}
+	#footer {
+		position: fixed;
+		bottom: 0px;
+		left: 0px;
+		color: white;
+		font-size: 1em;
+		width: 100%;
+		background: #003156;
+		padding: 5px;
+	}
+	#footer a {
+		text-decoration: none;
+		color: white;
+	}
+	#progress {
+		outline-width: 0px;
+		border: 1px solid black;
+		width: 0%;
+		margin-top: 50px;
+		margin-bottom: 20px;
+	}
+
+	.node circle {
+	  fill: #fff;
+	  stroke: #003156;
+	  stroke-width: 3px;
+	}
+
+	.node text { font: 0.8em myriadl; }
+
+	.link {
+	  fill: none;
+	  stroke: #ccc;
+	  stroke-width: 2px;
+	}
+
+	</style>
 </head>
 <body>
-<textarea id="sentences">
-</textarea><button onclick="parse()">Parse</button>
+<div id="header">
+LTRC: Indian Language Full Parser
+</div>
+<textarea id="sentences" placeholder="Enter your sentences here">
+</textarea>
+<button class="btn" onclick="parse()">Parse</button>
+<hr id="progress" />
 <div id="results">
 
+</div>
+<div id="footer">
+Designed by <a href="http://mrinaldhar.com">Mrinal Dhar</a>
 </div>
 </body>
 <script src="./js/jquery.js"></script>
 <script> 
+var progress;
+var res;
+var nodes = {};
 
 function parse() {
 	var sentences = $('#sentences').val();
 	console.log(sentences);
 	ajaxCall("http://ltrc.iiit.ac.in:5005/parse", {data: sentences, lang: "hin"}, "GET", getResults);
+	setProgress(true);
+}
+
+function setProgress(value) {
+	if (value == true){
+		progress = window.setInterval(function() {
+			var width = $('#progress').width();
+			width = (width + 10)%(window.innerWidth*0.6);
+			$('#progress').width(width);
+		}, 1);
+	}
+	else if (value == false) {
+		window.clearInterval(progress);
+		$('#progress').width(window.innerWidth * 0.6);
+	}
 }
 
 function getResults(data) {
 	console.log(data);
+	setProgress(false);
+	res = data;
+	// data = JSON.stringify(data);
+	toshow = "<pre>" + data["dependencyparse-11"] + "</pre><br />";
+	data = data["dependencyparse-11"].split('\n');
+	var parent = {};
+	var currParent = "";
+	$.each(data, function(index, value) {
+		data[index] = data[index].split('\t');
+		var len = data[index].length;
+		if (!isNaN(data[index][0])) {
+			if (parent[parseInt(data[index][6])]) {
+				parent[parseInt(data[index][6])].push(parent[data[index][0]]);
+			}
+			else {
+				parent[parseInt(data[index][6])] = [parent[data[index][0]]];
+			}
+		}
+	});	
+	console.log(parent);
+	$.each(parent, function(index, value) {
+		if (data[index]!=undefined) {
+			if (parseInt(data[index][6]) == 0) {
+				currParent = "null";
+			} 
+			else {
+				console.log(parseInt(data[index][6]));
+				if (!isNaN(data[index][6])) {
+					currParent = data[parseInt(data[index][6])][1];
+				}
+			}
+			var node = {
+				"name": data[index][1],
+				"parent": currParent,
+				"children": []
+			};
+			if (currParent == "null") {
+				nodes[parseInt(index)] = node;
+			}
+			else {
+				// nodes[parseInt(data[index][6])]["children"].push(node);
+			}
+		}
+	});
+	// updateTree(parent);
+	console.log(parent);
+	$('#results').html(toshow);
 }
 
 function ajaxCall(endpoint, objToSend, ajaxmethod, callback) {
@@ -52,4 +225,103 @@ return vars;
 
 
 </script>
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+	
+<script>
+
+var treeData = [
+  {
+    "name": "Top Level",
+    "parent": "null",
+    "children": [
+      {
+        "name": "Level 2: A",
+        "parent": "Top Level",
+        "children": [
+          {
+            "name": "Son of A",
+            "parent": "Level 2: A"
+          },
+          {
+            "name": "Daughter of A",
+            "parent": "Level 2: A"
+          }
+        ]
+      },
+      {
+        "name": "Level 2: B",
+        "parent": "Top Level"
+      }
+    ]
+  }
+];
+
+// ************** Generate the tree diagram	 *****************
+var margin = {top: 40, right: 120, bottom: 20, left: 120},
+	width = 960 - margin.right - margin.left,
+	height = 500 - margin.top - margin.bottom;
+	
+var i = 0;
+
+var tree = d3.layout.tree()
+	.size([height, width]);
+
+var diagonal = d3.svg.diagonal()
+	.projection(function(d) { return [d.x, d.y]; });
+
+var svg = d3.select("body").append("svg")
+	.attr("width", width + margin.right + margin.left)
+	.attr("height", height + margin.top + margin.bottom)
+  .append("g")
+	.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+root = treeData[0];
+  
+
+function updateTree(source) {
+
+  // Compute the new tree layout.
+  var nodes = tree.nodes(root).reverse(),
+	  links = tree.links(nodes);
+
+  // Normalize for fixed-depth.
+  nodes.forEach(function(d) { d.y = d.depth * 100; });
+
+  // Declare the nodes…
+  var node = svg.selectAll("g.node")
+	  .data(nodes, function(d) { return d.id || (d.id = ++i); });
+
+  // Enter the nodes.
+  var nodeEnter = node.enter().append("g")
+	  .attr("class", "node")
+	  .attr("transform", function(d) { 
+		  return "translate(" + d.x + "," + d.y + ")"; });
+
+  nodeEnter.append("circle")
+	  .attr("r", 10)
+	  .style("fill", "#fff");
+
+  nodeEnter.append("text")
+	  .attr("y", function(d) { 
+		  return d.children || d._children ? -18 : 18; })
+	  .attr("dy", ".35em")
+	  .attr("text-anchor", "middle")
+	  .text(function(d) { return d.name; })
+	  .style("fill-opacity", 1);
+
+  // Declare the links…
+  var link = svg.selectAll("path.link")
+	  .data(links, function(d) { return d.target.id; });
+
+  // Enter the links.
+  link.enter().insert("path", "g")
+	  .attr("class", "link")
+	  .attr("d", diagonal);
+
+}
+
+</script>
+
+
 </html>
