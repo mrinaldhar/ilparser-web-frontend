@@ -12,7 +12,6 @@
 		font-family: myriadl;
 		text-align: center;
 		padding-top: 80px;
-		background-color: rgba(0,0,0,0.1);
 	}
 	#sentences {
 		left: 0;
@@ -21,22 +20,25 @@
 		width: 60%;
 		display: block;
 		outline-width: 0px;
-		font-family: consolas, monospace;
+		font-family: myriadl, monospace;
 		font-size: 1em;
 		border: 1px solid rgba(0,0,0,0.5);
 		border-radius: 5px;
 		padding: 10px;
 		height: 150px;
 		resize: none;
+		box-shadow: inset 0 0 5px black;
 	}
 	#results {
-		width: 80%;
+		display: none;
+		width: 100%;
+		padding-left: 10%;
+		padding-right: 10%;
 		text-align: left;
 		margin-top: 20px;
 		left: 0;
 		right: 0;
 		margin: 0 auto;
-		display: block;
 	}
 	.btn {
 		padding-left: 10px;
@@ -94,14 +96,37 @@
 	  stroke-width: 3px;
 	}
 
-	.node text { font: 0.8em myriadl; }
+	.node text { font: 1.4em myriadl; }
 
 	.link {
 	  fill: none;
 	  stroke: #ccc;
-	  stroke-width: 2px;
+	  stroke-width: 3px;
+
 	}
 
+	.linktext {
+		font-size: 0.8em;
+		display: block;
+		color: gray;
+		background-color: white;
+		padding-left: 6px;
+		padding-right: 6px;
+		padding-top: 3px;
+		padding-bottom: 3px;
+		border-radius: 3px;
+	}
+	#details {
+		width: 100%;
+		padding-left: 10%;
+		padding-right: 10%;
+		text-align: center;
+		display: block;
+		opacity: 0;
+	}
+	.toggleResults {
+		display: none;
+	}
 	</style>
 </head>
 <body>
@@ -112,9 +137,15 @@ LTRC: Indian Language Full Parser
 </textarea>
 <button class="btn" onclick="parse()">Parse</button>
 <hr id="progress" />
+<div id="details">This data is about node.
+	</div>
+	<br />
 <div id="results">
 
 </div>
+<button class="btn toggleResults" onclick="toggleResults()" >Toggle full result</button>
+<br /><br /><br /><br />
+
 <div id="footer">
 Designed by <a href="http://mrinaldhar.com">Mrinal Dhar</a>
 </div>
@@ -153,48 +184,41 @@ function getResults(data) {
 	// data = JSON.stringify(data);
 	toshow = "<pre>" + data["dependencyparse-11"] + "</pre><br />";
 	data = data["dependencyparse-11"].split('\n');
-	var parent = {};
-	var currParent = "";
+	// var parent = {};
+	// var currParent = "";
+
+	window.parentdata = {};
+	var parentdata = {};
+	var root = -1;
+
 	$.each(data, function(index, value) {
 		data[index] = data[index].split('\t');
 		var len = data[index].length;
-		if (!isNaN(data[index][0])) {
-			if (parent[parseInt(data[index][6])]) {
-				parent[parseInt(data[index][6])].push(parent[data[index][0]]);
-			}
-			else {
-				parent[parseInt(data[index][6])] = [parent[data[index][0]]];
-			}
-		}
-	});	
-	console.log(parent);
-	$.each(parent, function(index, value) {
-		if (data[index]!=undefined) {
-			if (parseInt(data[index][6]) == 0) {
-				currParent = "null";
-			} 
-			else {
-				console.log(parseInt(data[index][6]));
-				if (!isNaN(data[index][6])) {
-					currParent = data[parseInt(data[index][6])][1];
-				}
-			}
-			var node = {
-				"name": data[index][1],
-				"parent": currParent,
-				"children": []
-			};
-			if (currParent == "null") {
-				nodes[parseInt(index)] = node;
-			}
-			else {
-				// nodes[parseInt(data[index][6])]["children"].push(node);
+		if (!isNaN(data[index][0]) && data[index][0]!='') {
+			parentdata[data[index][0]] = {"name": data[index][1], "children":[], "POS":data[index][4], "rel":data[index][7], "parent": data[index][6]};
+			if (data[index][6]==0) {
+				root = data[index][0];
 			}
 		}
 	});
-	// updateTree(parent);
+
+
+	$.each(parentdata, function(index, value) {
+		// console.log(index);
+		var parent = value["parent"];
+		// console.log(parent);
+		if (parent != 0) {
+			parentdata[parent]["children"].push(value);
+		}
+	});
+	
+
+	window.parentdata = parentdata[root];
+	updateTree([parentdata[root]]);
 	console.log(parent);
 	$('#results').html(toshow);
+	 // $('#toggleResults').fadeIn();
+
 }
 
 function ajaxCall(endpoint, objToSend, ajaxmethod, callback) {
@@ -223,6 +247,9 @@ vars[key] = value;
 return vars;
 }
 
+function toggleResults() {
+	$('#results').slideToggle();
+}
 
 </script>
 
@@ -257,29 +284,37 @@ var treeData = [
   }
 ];
 
-// ************** Generate the tree diagram	 *****************
-var margin = {top: 40, right: 120, bottom: 20, left: 120},
-	width = 960 - margin.right - margin.left,
-	height = 500 - margin.top - margin.bottom;
+	// ************** Generate the tree diagram	 *****************
+
+
+var margin = {top: 40, right: $(document).width()/4, bottom: 20, left: $(document).width()/4},
+	width = $(document).width(),
+	height = 900;
 	
+	console.log($(document).width(), height);
 var i = 0;
 
 var tree = d3.layout.tree()
-	.size([height, width]);
+	.size([height, width]).separation(function(a, b) {
+               console.log(a, b); return $(document).width()/5;
+           });
 
 var diagonal = d3.svg.diagonal()
 	.projection(function(d) { return [d.x, d.y]; });
 
 var svg = d3.select("body").append("svg")
-	.attr("width", width + margin.right + margin.left)
+	.attr("width", width + margin.left + margin.right)
 	.attr("height", height + margin.top + margin.bottom)
   .append("g")
 	.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-root = treeData[0];
+
   
 
 function updateTree(source) {
+
+
+root = source[0];
 
   // Compute the new tree layout.
   var nodes = tree.nodes(root).reverse(),
@@ -299,15 +334,15 @@ function updateTree(source) {
 		  return "translate(" + d.x + "," + d.y + ")"; });
 
   nodeEnter.append("circle")
-	  .attr("r", 10)
+	  .attr("r", 8)
 	  .style("fill", "#fff");
 
   nodeEnter.append("text")
 	  .attr("y", function(d) { 
-		  return d.children || d._children ? -18 : 18; })
+		  return d.children || d._children ? -25 : 25; })
 	  .attr("dy", ".35em")
 	  .attr("text-anchor", "middle")
-	  .text(function(d) { return d.name; })
+	  .text(function(d) { return d.name + " ("+d.POS+") "; })
 	  .style("fill-opacity", 1);
 
   // Declare the links…
@@ -318,6 +353,25 @@ function updateTree(source) {
   link.enter().insert("path", "g")
 	  .attr("class", "link")
 	  .attr("d", diagonal);
+
+	  link.enter().append("text")
+	  .attr("class", "linktext")
+   .attr("x", function(d) { return d.source.x + (d.target.x - d.source.x)/2; })
+   .attr("y", function(d) { return d.source.y + (d.target.y - d.source.y)/2; })
+   .text(function(d) { return d.target.rel; });
+
+
+	 $('circle').hover(function() {
+	 	$('#details').css("opacity", "1");
+	 });
+
+	 $('.toggleResults').fadeIn();
+
+
+
+
+
+
 
 }
 
